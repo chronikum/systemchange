@@ -81,7 +81,7 @@ export default class CachetJS {
       console.log("Ein Fehler ist aufgetreten!");
       console.log(e);
     }
-    setTimeout(() => this.heartbeat(), 30000);
+    setTimeout(() => this.heartbeat(), 45000);
   }
 
   /**
