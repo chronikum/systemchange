@@ -81,7 +81,7 @@ export default class CachetJS {
       console.log("Ein Fehler ist aufgetreten!");
       console.log(e);
     }
-    setTimeout(() => this.heartbeat(), 45000);
+    setTimeout(() => this.heartbeat(), 90000);
   }
 
   /**
@@ -92,7 +92,7 @@ export default class CachetJS {
     console.log("Checking service");
     const response = await axios({
       url: component.link,
-      timeout: 1000,
+      timeout: 10000,
       method: "get",
     }).catch((e) => {
       return null;
