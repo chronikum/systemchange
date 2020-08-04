@@ -3,6 +3,8 @@ import Component from "./interfaces/Component";
 import Util from "./util";
 import Incident from "./interfaces/Incident";
 import { Status } from "./Enums/Status";
+import axios from "axios";
+import { stat } from "fs";
 var CachetAPI = require("cachet-api");
 
 export default class CachetJS {
@@ -21,7 +23,7 @@ export default class CachetJS {
   /**
    * Current Incidents to not update component all the time if it is affected
    */
-  currentIncidents: Incident[];
+  currentAffectedComponents: Component[] = [];
 
   /**
    * Constructs a new instance of {@link CachetJS}
@@ -52,50 +54,81 @@ export default class CachetJS {
   startHearbeat() {
     this.heartbeat();
   }
+
   /**
    * Heartbeat
+   *
+   * Every 30 Seconds
    */
   async heartbeat() {
     try {
-      console.log("Hi");
+      this.components = await this.utils.getAllComponents(process.env.BASEURL);
+      this.components.forEach(async (component) => {
+        if (component.status == Status.OPERATIONAL) {
+          // Status in Database operational?
+          const status = await this.checkServiceOnIncidents(component); // Real state
+          if (status != Status.OPERATIONAL) {
+            // Check if service needs service
+            // Check if real state is operational
+            console.log("ERROR!");
+            this.reportIncident(component, status);
+          } else {
+            console.log("Operational!");
+          }
+        }
+      });
     } catch (e) {
+      console.log("Ein Fehler ist aufgetreten!");
       console.log(e);
     }
-    this.reportIncident(this.components[0]);
-    setTimeout(() => this.heartbeat(), 5000);
+    setTimeout(() => this.heartbeat(), 10000);
   }
 
   /**
    * Checks if there is an active incident
    * @returns {@link Status}
    */
-  checkServiceOnIncidents(component: Component): Status {
-    return Status.OPERATIONAL;
+  async checkServiceOnIncidents(component: Component): Promise<Status> {
+    console.log("Checking service");
+    const response = await axios({
+      url: component.link,
+      timeout: 1000,
+      method: "get",
+    }).catch((e) => {
+      return null;
+    });
+    if (response && response.status) {
+      switch (response.status) {
+        case 200:
+          return Status.OPERATIONAL;
+        case 503:
+          return Status.PARTIAL_OUTAGE;
+        case 500:
+          console.log("ERROR");
+          return Status.MAJOR_OUTAGE;
+      }
+    } else {
+      console.log("ERROR");
+      return Status.MAJOR_OUTAGE;
+    }
   }
-  /**
-   * Updates the Components
-   */
-  updateComponents() {}
-
-  /**
-   * Get all components
-   */
-  getAllComponents() {}
 
   /**
    * Reports an incident
    */
-  reportIncident(affected_component: Component) {
+  reportIncident(affected_component: Component, status: Status) {
     var incident: Incident = {
-      name: "Nicht erreichbar",
+      name: status,
       message:
         "Das Problem wird bereits untersucht. Wir halten euch hier auf dem Laufendem.",
       status: "Investigating",
       visible: true,
       notify: false,
-      component_id: 1,
-      component_status: "Major Outage",
+      component_id: affected_component.id,
+      component_status: status,
     };
+
+    this.currentAffectedComponents.push(affected_component);
 
     this.cachet
       .reportIncident(incident)

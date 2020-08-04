@@ -5,8 +5,8 @@ import { Status } from "../Enums/Status";
  */
 export default interface Component {
   id: Number;
-  name: String;
-  description: String;
-  link: String;
+  name: string;
+  description: string;
+  link: string;
   status: Status;
 }
