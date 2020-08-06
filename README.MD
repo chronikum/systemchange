@@ -1,6 +1,6 @@
-# SYSTEMCHANGE
+# systemchange
 
-## A MONITORING TOOL FOR CACHET, WRITTEN IN TYPESCRIPT
+## A Monitoring Tool for Cachet, written in TypeScript
 
 ### Requirements
  - Cachet (of course)
