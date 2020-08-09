@@ -5,6 +5,7 @@ import Incident from "./interfaces/Incident";
 import { Status } from "./Enums/Status";
 import axios from "axios";
 import { stat } from "fs";
+import { SNMP } from "./snmp";
 var CachetAPI = require("cachet-api");
 
 export default class CachetJS {
@@ -24,6 +25,14 @@ export default class CachetJS {
    * Current Incidents to not update component all the time if it is affected
    */
   currentAffectedComponents: Component[] = [];
+  /**
+   * Local testing
+   */
+  localTestingMode = false;
+  /**
+   * SNMP Monitoring
+   */
+  snmp: SNMP = new SNMP();
 
   /**
    * Constructs a new instance of {@link CachetJS}
@@ -61,35 +70,38 @@ export default class CachetJS {
    * Every 30 Seconds
    */
   async heartbeat() {
-    try {
-      this.components = await this.utils.getAllComponents(process.env.BASEURL);
-      this.components.forEach(async (component) => {
-        if (component.status == Status.OPERATIONAL) {
-          // Status in Database operational?
-          const status = await this.checkServiceOnIncidents(component); // Real state
-          if (status != Status.OPERATIONAL) {
-            // Check if service needs service
-            // Check if real state is operational
-            console.log("ERROR!");
-            this.reportIncident(component, status);
-          } else {
-            console.log("Operational!");
+    if (!this.localTestingMode) {
+      try {
+        this.components = await this.utils.getAllComponents(
+          process.env.BASEURL
+        );
+        this.components.forEach(async (component) => {
+          if (component.status == Status.OPERATIONAL) {
+            // Status in Database operational?
+            const status = await this.checkServiceOnIncidents(component); // Real state
+            if (status != Status.OPERATIONAL) {
+              // Check if service needs service
+              // Check if real state is operational
+              console.log("ERROR!");
+              this.reportIncident(component, status);
+            } else {
+              console.log("Operational!");
+            }
           }
-        }
-      });
-    } catch (e) {
-      console.log("Ein Fehler ist aufgetreten!");
-      console.log(e);
+        });
+      } catch (e) {
+        console.log("Ein Fehler ist aufgetreten!");
+        console.log(e);
+      }
     }
+    // this.snmp.getMonitoringInformation(this.components[0]);
     setTimeout(() => this.heartbeat(), 60000);
   }
 
-  /**
-   * Checks if there is an active incident
-   * @returns {@link Status}
+  /*
+   * Checks if services is responding
    */
-  async checkServiceOnIncidents(component: Component): Promise<Status> {
-    console.log("Checking service");
+  async getResponseFromComponent(component: Component): Promise<Status> {
     const response = await axios({
       url: component.link,
       timeout: 10000,
@@ -110,6 +122,20 @@ export default class CachetJS {
     } else {
       console.log("ERROR");
       return Status.MAJOR_OUTAGE;
+    }
+  }
+  /**
+   * Checks if there is an active incident
+   * @returns {@link Status}
+   */
+  async checkServiceOnIncidents(component: Component): Promise<Status> {
+    console.log("Checking service");
+    const status = await this.getResponseFromComponent(component);
+    if (status === Status.OPERATIONAL) {
+      return Status.OPERATIONAL;
+    } else {
+      const checkStatusAgain = await this.getResponseFromComponent(component);
+      return checkStatusAgain;
     }
   }
 
