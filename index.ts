@@ -35,7 +35,6 @@ export default class CachetJS {
    * SNMP Monitoring
    */
   snmp: SNMP = new SNMP();
-
   /**
    * Axios client
    */
@@ -138,7 +137,7 @@ export default class CachetJS {
   }
 
   /*
-   * Checks if services is responding
+   * Checks if services are responding
    */
   async getResponseFromComponent(component: Component, timeout: number): Promise<Status> {
     const response = await this.axiosInstance({
