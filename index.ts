@@ -101,10 +101,10 @@ export default class CachetJS {
   /*
    * Checks if services is responding
    */
-  async getResponseFromComponent(component: Component): Promise<Status> {
+  async getResponseFromComponent(component: Component, timeout: Number): Promise<Status> {
     const response = await axios({
       url: component.link,
-      timeout: 10000,
+      timeout: timeout,
       method: "get",
     }).catch((e) => {
       return null;
@@ -130,11 +130,11 @@ export default class CachetJS {
    */
   async checkServiceOnIncidents(component: Component): Promise<Status> {
     console.log("Checking service");
-    const status = await this.getResponseFromComponent(component);
+    const status = await this.getResponseFromComponent(component,10000);
     if (status === Status.OPERATIONAL) {
       return Status.OPERATIONAL;
     } else {
-      const checkStatusAgain = await this.getResponseFromComponent(component);
+      const checkStatusAgain = await this.getResponseFromComponent(component,30000);
       return checkStatusAgain;
     }
   }
