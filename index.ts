@@ -1,12 +1,12 @@
-require("dotenv").config();
-import Component from "./interfaces/Component";
-import Util from "./util";
-import Incident from "./interfaces/Incident";
-import { Status } from "./Enums/Status";
-import axios from "axios";
-import { stat } from "fs";
-import { SNMP } from "./snmp";
-var CachetAPI = require("cachet-api");
+require('dotenv').config()
+import Component from './interfaces/Component'
+import Util from './util'
+import Incident from './interfaces/Incident'
+import { Status } from './Enums/Status'
+import axios from 'axios'
+import { stat } from 'fs'
+import { SNMP } from './snmp'
+const CachetAPI = require('cachet-api')
 
 export default class CachetJS {
   /**
@@ -39,21 +39,21 @@ export default class CachetJS {
    * @description Initiates Client
    */
   constructor() {
-    this.cachet = new CachetAPI({
+      this.cachet = new CachetAPI({
       // Base URL of your installed Cachet status page
-      url: process.env.BASEURL,
-      // Cachet API key (provided within the admin dashboard)
-      apiKey: process.env.TOKEN,
-    });
-    this.setup();
+          url: process.env.BASEURL,
+          // Cachet API key (provided within the admin dashboard)
+          apiKey: process.env.TOKEN,
+      })
+      this.setup()
   }
 
   /**
    * Loads the components which will be checked on and starts the heartbeat
    */
   async setup() {
-    this.components = await this.utils.getAllComponents(process.env.BASEURL);
-    this.startHearbeat();
+      this.components = await this.utils.getAllComponents(process.env.BASEURL)
+      this.startHearbeat()
   }
   /**
    * Start Heartbeat and prepare stuff
@@ -61,7 +61,7 @@ export default class CachetJS {
    * Keeps the app running alive and does all the work
    */
   startHearbeat() {
-    this.heartbeat();
+      this.heartbeat()
   }
 
   /**
@@ -70,103 +70,118 @@ export default class CachetJS {
    * Every 30 Seconds
    */
   async heartbeat() {
-    if (!this.localTestingMode) {
-      try {
-        this.components = await this.utils.getAllComponents(
-          process.env.BASEURL
-        );
-        this.components.forEach(async (component) => {
-          if (component.status == Status.OPERATIONAL) {
-            // Status in Database operational?
-            const status = await this.checkServiceOnIncidents(component); // Real state
-            if (status != Status.OPERATIONAL) {
-              // Check if service needs service
-              // Check if real state is operational
-              console.log("ERROR!");
-              this.reportIncident(component, status);
-            } else {
-              console.log("Operational!");
-            }
+      if (!this.localTestingMode) {
+          try {
+              this.components = await this.utils.getAllComponents(
+                  process.env.BASEURL
+              )
+              this.components.forEach(async (component) => {
+                  if (component.status == Status.OPERATIONAL) {
+                      // Status in Database operational?
+                      const status = await this.checkServiceOnIncidents(component) // Real state
+                      if (status != Status.OPERATIONAL) {
+                          // Check if service needs service
+                          // Check if real state is operational
+                          console.log('ERROR!')
+                          this.reportIncident(component, status)
+                      } else {
+                          console.log('Operational!')
+                      }
+                  }
+              })
+          } catch (e) {
+              console.log('Ein Fehler ist aufgetreten!')
+              console.log(e)
           }
-        });
-      } catch (e) {
-        console.log("Ein Fehler ist aufgetreten!");
-        console.log(e);
       }
-    }
-    // this.snmp.getMonitoringInformation(this.components[0]);
-    setTimeout(() => this.heartbeat(), 60000);
+      // this.snmp.getMonitoringInformation(this.components[0]);
+      setTimeout(() => this.heartbeat(), 60000)
   }
 
   /*
    * Checks if services is responding
    */
-  async getResponseFromComponent(component: Component, timeout: Number): Promise<Status> {
-    const response = await axios({
-      url: component.link,
-      timeout: timeout,
-      method: "get",
-    }).catch((e) => {
-      return null;
-    });
-    if (response && response.status) {
-      switch (response.status) {
-        case 200:
-          return Status.OPERATIONAL;
-        case 503:
-          return Status.PARTIAL_OUTAGE;
-        case 500:
-          console.log("ERROR");
-          return Status.MAJOR_OUTAGE;
+  async getResponseFromComponent(component: Component, timeout: number): Promise<Status> {
+      const response = await axios({
+          url: component.link,
+          timeout: timeout,
+          method: 'get',
+      }).catch((e) => {
+          return null
+      })
+      if (response && response.status) {
+          switch (response.status) {
+          case 200:
+              return Status.OPERATIONAL
+          case 503:
+              return Status.PARTIAL_OUTAGE
+          case 500:
+              console.log('ERROR')
+              return Status.MAJOR_OUTAGE
+          }
+      } else {
+          console.log('ERROR')
+          return Status.MAJOR_OUTAGE
       }
-    } else {
-      console.log("ERROR");
-      return Status.MAJOR_OUTAGE;
-    }
+  }
+
+
+  setupInterceptor() {
+      axios.interceptors.response.use(x => {
+          console.log(`Execution time for: ${x.config.url} - ${new Date().getTime() - x.config.meta.requestStartedAt} ms`)
+          return x
+      },
+      // Handle 4xx & 5xx responses
+      x => {
+          console.error(`Execution time for: ${x.config.url} - ${new Date().getTime() - x.config.meta.requestStartedAt} ms`)
+          throw x
+      }
+      )
+
   }
   /**
    * Checks if there is an active incident
    * @returns {@link Status}
    */
   async checkServiceOnIncidents(component: Component): Promise<Status> {
-    console.log("Checking service");
-    const status = await this.getResponseFromComponent(component,10000);
-    if (status === Status.OPERATIONAL) {
-      return Status.OPERATIONAL;
-    } else {
-      const checkStatusAgain = await this.getResponseFromComponent(component,30000);
-      return checkStatusAgain;
-    }
+      console.log('Checking service')
+      const status = await this.getResponseFromComponent(component,10000)
+      if (status === Status.OPERATIONAL) {
+          return Status.OPERATIONAL
+      } else {
+          const checkStatusAgain = await this.getResponseFromComponent(component,30000)
+          return checkStatusAgain
+      }
   }
 
   /**
    * Reports an incident
    */
   reportIncident(affected_component: Component, status: Status) {
-    var incident: Incident = {
-      name: status,
-      message:
-        "Das Problem wird bereits untersucht. Wir halten euch hier auf dem Laufendem.",
-      status: "Investigating",
-      visible: true,
-      notify: false,
-      component_id: affected_component.id,
-      component_status: status,
-    };
+      const incident: Incident = {
+          name: status,
+          message:
+        'Das Problem wird bereits untersucht. Wir halten euch hier auf dem Laufendem.',
+          status: 'Investigating',
+          visible: true,
+          notify: false,
+          component_id: affected_component.id,
+          component_status: status,
+      }
 
-    this.currentAffectedComponents.push(affected_component);
+      this.currentAffectedComponents.push(affected_component)
 
-    this.cachet
-      .reportIncident(incident)
-      .then(function (response) {
-        // Log API response
-        console.log("New incident reported at " + response.data.created_at);
-      })
-      .catch(function (err) {
-        // Log errors to console
-        console.log("Fatal Error", err);
-      });
+      this.cachet
+          .reportIncident(incident)
+          .then(function (response) {
+              // Log API response
+              console.log('New incident reported at ' + response.data.created_at)
+          })
+          .catch(function (err) {
+              // Log errors to console
+              console.log('Fatal Error', err)
+          })
   }
 }
 
-new CachetJS();
+new CachetJS()
