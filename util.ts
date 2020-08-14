@@ -1,8 +1,8 @@
-import Axios from "axios";
+import Axios from 'axios';
 
-import axios from "axios";
-import Component from "./interfaces/Component";
-import { Status } from "./Enums/Status";
+import axios from 'axios';
+import Component from './interfaces/Component';
+import { Status } from './Enums/Status';
 /**
  * Useful functions for CachetJS
  */
@@ -14,14 +14,12 @@ export default class Util {
   /**
    * Get all components
    */
-  async getAllComponents(baseurl): Promise<Component[]> {
-    const response = await axios.get(
-      `${baseurl}/api/v1/components?sort=status&order=desc`
-    );
+  async getAllComponents(baseurl: String): Promise<Component[]> {
+    const response = await axios.get(`${baseurl}/api/v1/components?sort=status&order=desc`);
     let components: Component[] = [];
-    response.data["data"].forEach((rawComponent) => {
+    response.data['data'].forEach((rawComponent: any) => {
       var status = Status.MAJOR_OUTAGE;
-      switch (rawComponent["status"]) {
+      switch (rawComponent['status']) {
         case 1:
           status = Status.OPERATIONAL;
           break;
@@ -37,10 +35,10 @@ export default class Util {
       }
       let component: Component = {
         status: status,
-        id: rawComponent["id"],
-        name: rawComponent["name"],
-        description: rawComponent["description"],
-        link: rawComponent["link"],
+        id: rawComponent['id'],
+        name: rawComponent['name'],
+        description: rawComponent['description'],
+        link: rawComponent['link'],
       };
       components.push(component);
     });
